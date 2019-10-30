@@ -12,8 +12,6 @@ This prediction is meaningful as it explore whether some discrimation exists whe
 
 Since the large size of this data set(roughly 2 GB), we will not develop a model using all the data. Instead, an exploratary data analysis and an elementary prediction model will be based on the data only in 2016. Then, we will try to generalize our model to a non-stantionary one.
 
-See our [Project Proposal](https://github.com/s2c/ORIE4741-ArrestsDataSet/blob/master/project_proposal.pdf) for more detailed information.
-
 This project is for [Fall 2019 ORIE 4741](https://github.com/ORIE4741/ProjectsFall2019).
 
 ### Dataset
