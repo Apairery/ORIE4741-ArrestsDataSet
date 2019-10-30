@@ -17,5 +17,5 @@ See our [Project Proposal](https://github.com/s2c/ORIE4741-ArrestsDataSet/blob/m
 This project is for [Fall 2019 ORIE 4741](https://github.com/ORIE4741/ProjectsFall2019).
 
 ### Dataset
-https://data.cityofnewyork.us/Public-Safety/NYPD-Arrests-Data-Historic-/8h9b-rp9u
+https://www1.nyc.gov/site/nypd/stats/reports-analysis/stopfrisk.page
 
