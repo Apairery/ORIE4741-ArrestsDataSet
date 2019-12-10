@@ -1,0 +1,303 @@
+\documentclass[letterpaper, twocolumn]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+}
+\usepackage{amsgen,amsmath,amstext,amsbsy,amsopn,tikz,amssymb,tkz-linknodes}
+\usepackage{setspace}
+\usepackage{subcaption}
+\usepackage[margin=2cm]{geometry}
+\usepackage{indentfirst}
+% \newcommand{\}[1]{\textcolor{red}{#1}}
+\newcommand{\mx}[1]{\textcolor{magenta}{#1}}
+
+% \setlength{\pdfpagewidth}{8.5in}
+% \setlength{\pdfpageheight}{11in}
+
+\title{ORIE 4741 Midterm Report}
+\author{Binxin Liu (bl642)~~~~Mengjia Xia (mx233)}
+\date{November 2019}
+
+% 可以参考 https://www.cnblogs.com/bonelee/p/9087882.html
+\begin{document}
+
+\maketitle
+
+% \section{Requirement}
+
+% November 7. Project midterm reports due
+
+% Project midterm report. By this time, you should have made some progress in \textbf{cleaning up} and understanding your data, and in running a few \textbf{preliminary analyses}. Your project midterm report should be \textbf{no more than 3 pages}, written in LaTeX or markdown, and posted in your project repository with the filename “midterm\_report”. (The file extension should be either .tex + .pdf, or just .md.)
+
+% In the report, you should \textbf{describe your data set} in greater detail. Describe how you plan to \textbf{avoid over (and under-)fitting}, and how you will test the effectiveness of the models you develop. Include a few histograms or other descriptive statistics about the data. How many features and examples are present? How much data is missing or corrupted? How can you tell? You should also run a few preliminary analyses on the data, including perhaps some regressions or other supervised models, describing how you chose which features (and transformations) to use. Finally, explain what remains to be done, and how you plan to develop the project over the rest of the semester.
+
+
+% \textbf{Timeline:}
+
+% 10/25: data cleaning
+
+% 11/1: visualization
+
+% 11/5: preliminary analyses
+
+\section{Introduction}
+
+% We will use \href{https://www1.nyc.gov/site/nypd/stats/reports-analysis/stopfrisk.page}{Stop, Question and Frisk Data}, which records every stop, question and frisk effected in NYC ranging from 01/01/2003 to 12/31/2018, to address the following questions:
+
+% \begin{itemize}
+%     \item whether some discrimination exists when making the arrestment decision
+%     \item whether there are avoidable mistakes in the decision.
+% \end{itemize}
+The goal of our project is to use \href{https://www1.nyc.gov/site/nypd/stats/reports-analysis/stopfrisk.page}{Stop, Question and Frisk Data}, which records every stop, question and frisk effected in NYC ranging from 01/01/2003 to 12/31/2018, to predict whether the suspect will be arrested based on information of every stop, question or frisk. For more details, please read our \href{https://github.com/Apairery/ORIE4741-ArrestsDataSet}{proposal}.%{README.md}.
+
+\section{Exploratory Data Analysis}
+\subsection{Overview}
+% describe the data set
+
+\href{https://www1.nyc.gov/site/nypd/stats/reports-analysis/stopfrisk.page}{Stop, Question and Frisk Data} from New York City Police Department records every stop, question and frisk effected in NYC. For each record, it has 112 variables, including dates, times, locations, physical features of the suspect, crime suspected and so on. There are more than 5 million records during 16 years. As a preliminary analysis, here we only investigated the records from 2016 (12404 records), and we will extend the scope later.
+
+\subsection{Data Cleaning}
+
+Since the data was manually extracted from UF-250 Form Stop, Question and Frisk Report Worksheet (\href{https://www.prisonlegalnews.org/news/publications/blank-uf-250-form-stop-question-and-frisk-report-worksheet-nypd-2016/}{2016 Version}), some variables are messy and abnormal because officials' handwriting was not easy to identify. For example, we found that the age of one suspect was recorded as 1 and there are missing values in some columns. 
+
+As the number of missing values is small, we directly dropped rows with missing values. To deal with outliers, we winsorized 1\% on age, weight and height. Besides, we dropped rows with values of sex, race, hair color, eye color and build labeled as unknown.  %\footnote{We can also use robust loss functions to eliminate the impact of outliers, but in our data set, it is more straightforward to winsorize some variables since ?.}. 
+After that, we had 10942 observations in total.
+
+The variable ``crimsusp" (crime suspected) is an important indicator of arrestment decision. However, the values are messy due to 1) different abbreviations used by different officials, 2) typo, 3) the use of Penal Law code instead \footnote{For example, for the crime type of ``Criminal Trespass", it is recorded as ``CRIM TRESS", ``CRIM TRESPASS", ``TRESSPASS", ``140.1" and etc.}. We manually matched values that represent the same crime type, resulting in 53 types. Note that if there exists more than one crime suspected, we only kept the first crime.
+
+
+
+% + table: variable description type
+
+\subsection{Preliminary Data Analysis}
+
+% time
+Figure \ref{fig:arstmade} shows the number of arrestment and non-arrestment across the time and its corresponding arrest rate. We can see that the arrest rate reaches its peak at 10:00-11:00 and 16:00-17:00. Though most stops happened at midnight, the arrest rate was not that high compared with daytime.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=3.3in]{midterm/Figure1time.pdf}
+    \caption{Arrest Across Time}
+    \label{fig:arstmade}
+\end{figure}
+
+
+
+% \begin{figure}
+% \begin{minipage}{0.65\textwidth}
+%     \centering
+%     \includegraphics[width=4in]{midterm/Figure1time.pdf}
+%     \caption{Arrest Across Time}
+%     \label{fig:arstmade}
+% \end{minipage}
+% \begin{minipage}{0.35\textwidth}
+% \centering
+% \begin{tabular}{ccc}
+% \textbf{Gender} & \textbf{Arrest Rate} & \textbf{Total Stops} \\ \hline
+% Male            & 0.212                & 9940                 \\
+% Female          & 0.244                & 598           \\    \hline  
+% \end{tabular}    
+% \captionof{table}{Arrest Across Gender}
+% \label{table:gender}
+% \end{minipage}
+% \end{figure}
+
+Figure \ref{fig:location} shows the geographical distribution of these observations. Color turning purple to red means higher frequency of stops, questions or frisks while bigger red circles means higher arrest rate. As we can see, arrest rate varies a lot in different precincts.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=3in]{midterm/map-2016-vis.png}
+    \caption{Arrest Across Location}
+    \label{fig:location}
+\end{figure}
+
+
+% location
+
+% different type of suspect
+We also investigated arrestments among different genders and races. From Table \ref{table:gender}, the arrest rate of female is higher than that of male, but the number of female is far lass than male.
+%
+Table \ref{table:race} displays the arrest rate of different races. Though Hispanic had a higher arrest rate, among those being arrested, Black people accounted for about 50\% as shown in Figure \ref{fig:race}.
+
+\begin{table}[htbp]
+    \centering
+    \begin{tabular}{ccc} \hline
+    \textbf{Gender} & \textbf{Arrest Rate} & \textbf{Total} \\ \hline
+    Male            & 0.212                & 9940                 \\
+    Female          & 0.244                & 598           \\    \hline  
+    \end{tabular}    
+    \caption{Arrest Across Gender}
+    \label{table:gender}
+\end{table}
+
+\begin{table}[htbp]
+    \centering
+    \begin{tabular}{cccc} \hline
+    \textbf{Label} & \textbf{Race}                  & \textbf{Arrest Rate} & \textbf{Total} \\ \hline
+    I              & \begin{tabular}[c]{@{}c@{}}American Indian/\\ Alaskan Native\end{tabular}  & 0.118                & 34                   \\
+    A              & \begin{tabular}[c]{@{}c@{}}Asian/\\ Pacific Islander\end{tabular}          & 0.153                & 639                  \\
+    B              & Black                          & 0.202                & 5558                 \\
+    W              & White                          & 0.203                & 1086                 \\
+    P              & Black-Hispanic                 & 0.235                & 756                  \\
+    Q              & White-Hispanic                 & 0.257                & 2393                 \\
+    U              & Other                         & 0.264                & 72                  \\ \hline
+    \end{tabular} 
+    \caption{Arrest Across Race}
+    \label{table:race}
+\end{table}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=2in]{midterm/Figure2race.pdf}
+    \caption{Arrested Suspects Across Race}
+    \label{fig:race}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=3.2in]{midterm/Figure_hm.pdf}
+    \caption{Variables Correlation Heatmap}
+    \label{fig:hm}
+\end{figure}
+
+Figure \ref{fig:hm} shows the correlation between different variables. Here, we applied \href{https://en.wikipedia.org/wiki/Pearson_correlation_coefficient}{Pearson Correlation} for pair of continuous variables and \href{https://en.wikipedia.org/wiki/Cram\%C3\%A9r\%27s_V}{Cramer's V} for pair of categorical variables. We can see that the correlations between variables are rather small, which indicates the need of feature selection  and engineering.
+
+% \begin{figure}[htbp]
+% \begin{minipage}{0.7\textwidth}
+% % \begin{table}[]
+% % \begin{center}
+% \begin{tabular}{cccc}
+% \textbf{Label} & \textbf{Race}                  & \textbf{Arrest Rate} & \textbf{Total Stops} \\ \hline
+% I              & American Indian/Alaskan Native & 0.118                & 34                   \\
+% A              & Asian/Pacific Islander         & 0.153                & 639                  \\
+% B              & Black                          & 0.202                & 5558                 \\
+% W              & White                          & 0.203                & 1086                 \\
+% P              & Black-Hispanic                 & 0.235                & 756                  \\
+% Q              & White-Hispanic                 & 0.257                & 2393                 \\
+% U              & Unknown                         & 0.264                & 72                  \\ \hline
+% \end{tabular}    
+% % \end{center}
+% \captionof{table}{Arrest Across Race}
+% \label{table:race}
+% % \end{table}
+% \end{minipage}
+% \hspace{-0.2in}
+% \begin{minipage}{0.3\textwidth}
+% \centering
+% \includegraphics[width=2in]{midterm/Figure2race.pdf}
+% \caption{Arrested Suspects Across Race}
+% \label{fig:race}
+% \end{minipage}
+% \end{figure}
+
+\section{Problem Formulation \& Modelling}
+% \section{Modelling}
+
+Prediction of arrestment decision is essentially figuring out what kind of stop, question or frisk and what kind of suspect will have a higher probability to be arrested. 
+
+For preliminary analyses, we selected 12 out of 112 variables as features ($X$) and ``arstmade" as $Y$, then built a classification model. Please refer to Table \ref{tab:variable} for an overview of variables we used.
+
+\begin{table}[htb]
+    \centering
+\begin{tabular}{clc} \hline
+\textbf{Variable} & \textbf{Description}                                                        & \textbf{Type} \\ \hline
+arstmade          & Was an arrest made ?                                                        & Categorical   \\
+timestop          & Time of stop (hour)                                                             & Countinuous   \\
+crimsusp          & Crime suspected                                                             & Categorical   \\
+inout             & \begin{tabular}[c]{@{}c@{}}Was stop inside or\\ outside ?\end{tabular}      & Categorical   \\
+sex               & Suspect's sex                                                               & Categorical   \\
+race              & Suspect's race                                                              & Categorical   \\
+age               & Suspect's age                                                               & Continuous    \\
+ht                & Suspect's height                                                            & Continuous    \\
+weight            & Suspect's weight                                                            & Continuous    \\
+haircolr          & Suspect's haircolor                                                         & Categorical   \\
+eyecolor          & Suspect's eye color                                                         & Categorical   \\
+build             & Suspect's build                                                             & Categorical   \\
+addrpct           & \begin{tabular}[c]{@{}c@{}}Location of stop\\ address precinct\end{tabular} & Categorical   \\ \hline
+\end{tabular}
+    \caption{Variables}
+    \label{tab:variable}
+\end{table}
+
+\subsection{Feature Engineering}
+To begin with, we performed feature engineering. Specifically, we used one-hot encoding on categorical variables (crimsusp, addrpct, sex, race, hair color, eye color, build). More sophisticated feature transformation will be used after we gain an elementary understanding of the prediction model.
+
+\subsection{Performance Metrics}
+
+Following standard performance metrics are used for our classification task: Accuracy \& Precision \& Recall (\href{https://en.wikipedia.org/wiki/Confusion_matrix}{Confusion Matrix}), \href{https://en.wikipedia.org/wiki/Receiver_operating_characteristic}{AUC}, and \href{https://en.wikipedia.org/wiki/F1_score}{$F_1$-score}.
+%
+% \begin{itemize}
+%     \item Accuracy \& Precision \& Recall
+%     \item \href{https://en.wikipedia.org/wiki/Receiver_operating_characteristic}{AUC}
+%     \item \href{https://en.wikipedia.org/wiki/F1_score}{$F_1$-score}
+% \end{itemize}
+%
+Note that AUC and $F_1$-score are overall metrics for performance of the classification model. %Click them for detail information.
+
+
+\subsection{Modelling}
+Our first attempt was building a logistic classification model. We randomly chose 80\% of the data set as the traing data set and the rest 20\% as the test data set.
+
+Firstly, we only used most basic features including suspect features, time and precinct. Figure \ref{fig:d1r} shows the ROC curve of the model ($model_1$). Then, we added inout, crimsusp into the features and introduced an $l_2$ penalty to the loss function to prevent over-fitting. Figure \ref{fig:d2r} shows the ROC curve of the new model ($model_2$). Table \ref{table:metricd1,2} displays the comparison between two models. 
+
+From Figure \ref{fig:d1r} and Table \ref{table:metricd1,2} we can see that though metrics such as accuracy, precision and recall are relatively high for $model_1$, AUC is low. This means $model_1$ cannot ideally predict the arrestment. Thus, we added two more variables, inout and crimsusp, as features because they are relatively highly correlated with the predicted variable (see Figure \ref{fig:hm}). %However, we actually will have more than 100 columns in the training data set due to the one-hot encoding. 
+However, one-hot encoding increases the number of features (more than 100). To prevent over-fitting and expect a better generalization of our model, we imposed the $l_2$ penalty on the loss function. From Figure \ref{fig:d2r} and Table \ref{table:metricd1,2} we can conclude that the modified model performs better in a big picture. 
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=3.2in]{midterm/data1roc.pdf}
+    \caption{ROC Curve of $model_1$}
+    \label{fig:d1r}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=3.2in]{midterm/data2roc.pdf}
+    \caption{ROC Curve of $model_2$}
+    \label{fig:d2r}
+\end{figure}
+
+\begin{table}[htbp]
+    \centering
+    \begin{tabular}{c|cc} \hline
+    \textbf{Metric} & \textbf{$Model_1$} & \textbf{$Model_2$} \\ \hline
+    \textbf{Accuracy} & 77.98 & 79.58\\ %\hline
+    \textbf{Precision} & 99.35& 98.23 \\ %\hline
+    \textbf{Recall}& 78.17 & 80.00 \\   %\hline
+    \textbf{$F_1$} & 0.875 & 0.882 \\ %   \hline
+    \textbf{AUC} & 0.665 & 0.690 \\
+    \hline
+    \end{tabular}    
+    \caption{Performance of Two Models}
+    \label{table:metricd1,2}
+\end{table}
+
+
+\section{Future Work}
+We implemented a simple logistic classification model. Our plan of future work is listed as follow.
+
+\subsection{Feature Selection \& Engineering}
+We selected 12 out of 112 variables as features. Others have not been touched on. If we can use more relevant features, the performance can be improved. We will use Random Forests to inspect feature importance, and add more features. Meanwhile, we will explore how to engineer used features to make it more informative.
+
+\subsection{Balance Dataset}
+%The first issue we need to deal with is the unbalance of dataset. 
+In our sample, there are about 21.38\% suspects being arrested. This means that a naive classification model predicting all suspects will not be arrested can also have an accuracy of 80\%. This is a common issue in the scenarios like credit card fraud detection. We will try to balance the data set by 1) adding the arrested samples from nearby years, or 2) using oversampling methods such as SMOTE \cite{chawla2002smote}.
+
+\subsection{Grid Search \& Cross Validation}
+The hyper-parameters in the model will influence the performance of the model. We will use grid search and cross validation to determine the optimal parameters.
+
+% \subsection{Feature Transformation}
+
+\subsection{Model Generalization}
+Currently, we only used 2016 data to build a classification model. Considering we have a dataset covering 16 years, things can change greatly. We need to evaluate our model on different datasets to see if it can be generalized well. Otherwise, we need to modify our model to incorporate the changing trend.
+
+
+\bibliographystyle{IEEEtran}%{plian}
+% \bibliographystyle{alphadin}
+\bibliography{ref_midterm}{}
+
+\end{document}

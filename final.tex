@@ -1,0 +1,560 @@
+
+
+
+\section{Introduction}
+
+% ~~
+
+
+%To maintain order and protect citizens in New York City, t
+The \textit{stop-question-and-frisk} program is a New York City Police Department (NYPD) practice of temporarily detaining, questioning, and at times searching civilians on the street for weapons and other contraband \footnote{https://en.wikipedia.org/wiki/Stop-and-frisk\_in\_New\_York\_City}. 
+Every time a police officer stops a person in NYC, the officer is supposed to fill out a form recording the details of the stop, of which we used in modeling will be discussed later (see, e.g., UF-250 Form Stop, Question and Frisk Report Worksheet \href{https://www.prisonlegalnews.org/news/publications/blank-uf-250-form-stop-question-and-frisk-report-worksheet-nypd-2016/}{2016 Version}). The forms were filled out by hand and manually entered into an NYPD database until 2017 when the forms became electronic.
+
+However, this program became the subject of a racial profiling controversy. To test whether such disparities exist in who is stopped and arrested by police on street, we obtained \href{https://www1.nyc.gov/site/nypd/stats/reports-analysis/stopfrisk.page}{Stop, Question and Frisk Data} from NYPD website, which records every stop, question and frisk effected in NYC ranging from 01/01/03 to 12/31/18. We used classification predictive modeling to see which types of suspects would be arrested with a higher probability and measured fairness in terms of NPR. %begin with, we performed . Then we fitted linear and non-linear classification predictive models , we found the unfairness among different sexes and races.
+We found the unfairness in the decision of arrestment over sex and race, which supports the existence of disparities.
+
+The rest of the report is organized as follows. An exploratory data analysis is given in Section \ref{sec:eda}. Problem is formulated in Section \ref{sec:problem}. We present details of linear and non-linear modeling in Section \ref{sec:linear} and \ref{sec:non-linear}, followed by our interpretations of the results in Section \ref{sec:interpret}. Finally, we conclude the report in Section \ref{sec:conclude}.
+
+% \newpage 
+\section{Exploratory Data Analysis} \label{sec:eda}
+\subsection{Overview}
+
+%\href{https://www1.nyc.gov/site/nypd/stats/reports-analysis/stopfrisk.page}{Stop, Question and Frisk Data} from New York City Police Department records every stop, question and frisk effected in NYC. 
+For each recorded sample in Stop, Question and Frisk Data, it has 112 features, including dates, times, locations, physical features of the suspect, crime suspected, details about what happened at the time and so on. There are more than 5 million records during the 16 years. 
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=3in]{final/Figure1_allstops.pdf}
+    \caption{Number of Reported Stops by Year}
+    \label{fig:stops}
+\end{figure}
+
+Since Mayor de Blasio came into office in January 2014, the number of reported NYPD stops has drastically declined in New York City, as shown in Figure \ref{fig:stops}.
+Considering time efficiency of training our models, the personnel change in 2014 as well as the advent of electronic form in 2017,  we investigated the records from 2014 to 2016 (\mx{80754} records).
+
+To incorporate the influence of the economics situation in the New York City, we acquired the monthly Consumer Price Index (CPI) and S\&P 500 index data from \href{https://www.wind.com.cn/en/wft.html}{Wind Financial Terminal}. We used the $1^{\text{st}}$ lag term of CPI and S\&P 500 index to capture the change of economic situation in New York City.
+
+\subsection{Data Cleaning}
+
+Since the data was manually extracted from forms, some variables are messy and abnormal because officials' handwriting was not easy to identify. For example, we found that the age of one suspect was recorded as 1 and there are missing values in some columns. 
+
+As the number of missing values is small, we directly \textbf{dropped rows with missing values}. To deal with \textbf{outliers}, we \textbf{winsorized 1\%} on age, weight, and height. Besides, we dropped rows with values of sex, race, hair color, eye color and build labeled as unknown. 
+After that, we had 75343 observations in total. 
+
+The variable ``crimsusp" (crime suspected) is an important indicator of arrestment decision. However, the values were messy due to (1) different abbreviations used by different officials, (2) typo, and (3) the use of Penal Law code instead \footnote{For example, for the crime type of ``Criminal Trespass", it is recorded as ``CRIM TRESS", ``CRIM TRESPASS", ``TRESSPASS", ``140.1", etc.}. We \textbf{manually matched values that represent the same crime type}, resulting in 53 types. Note that if there exists more than one crime suspected, we only kept the first crime.
+
+Please see Table \ref{Table:example} and to get a feel for the structure of the data set. A more detailed exhibition data (after feature engineering) can be found in our \href{https://github.com/Apairery/ORIE4741-ArrestsDataSet/blob/master/data/data_used.csv}{GitHub Repository}.
+
+
+\begin{table*}[htbp] \small
+    \centering
+    \begin{tabular}{cccccccccccc} \hline
+    \textbf{arstmade} & \textbf{timestop} & \textbf{crimsusp} & \textbf{frisked} & \textbf{searched} & \textbf{...} & \textbf{sex} & \textbf{race} & \textbf{age} & \textbf{weight} & \textbf{haircolr} & \textbf{eyecolor} \\ \hline
+    0                 & 1410              & 16                & 1                & 0                 & ...          & M            & B             & 18           & 150             & BK                & BR                \\
+    1                 & 930               & 32                & 1                & 1                 & ...          & M            & B             & 31           & 160             & BK                & BR                \\
+    0                 & 1260              & 16                & 1                & 0                 & ...          & M            & B             & 16           & 160             & BK                & BR         \\      \hline
+    \end{tabular} 
+    \caption{Data Set Example}
+    \label{Table:example}
+\end{table*}
+
+\textbf{These features can roughly be divided into 8 categories}: (1) date, time, location of the event, (2) reasons for being searched, frisked or stopped, (3) demographic features of the suspect, (4) actions taken by the police officer, (5) details about the suspect, like type of identification, whether carrying certain kinds of weapons, etc., (6) additional circumstance such as the suspect's attitude, sights or sounds of criminal activities, etc., (7) economic situation such as CPI and S\&P 500 index, and (8) others.
+
+\subsection{Data Analysis \& Visualization}
+
+% \noindent{\textbf{Time.}}
+Figure \ref{fig:arstmade} shows the number of arrestment and non-arrestment \textbf{across the time} and its corresponding arrest-made rate. Though the total number of stops decreased, the arrest-made rate increased greatly. Arrest-made rate during the second half of the year was higher than the first half, especially in November and December, the holiday season. In addition, we can see that the arrest-made rate reached its peak during the commuting time (7:00-9:00 and 18:00-20:00). Though most stops happened at midnight, the arrest-made rate was not that high compared with the daytime.
+
+% 每年，每月，每小时平均 -- 替换fig2
+
+% \begin{figure}[htbp]
+%     \centering
+%     \includegraphics[width=3.3in]{midterm/Figure1time.pdf}
+%     \caption{Arrest Across Time}
+%     \label{fig:arstmade}
+% \end{figure}
+
+\begin{figure*}
+\subfloat[By Year]{\begin{minipage}{0.33\textwidth}
+    \centering
+    \includegraphics[width=2in]{final/Figure_time_year.pdf}
+    % \caption{Caption}
+    % \label{fig:my_label}
+\end{minipage}}
+\subfloat[By Month]{\begin{minipage}{0.33\textwidth}
+    \centering
+    \includegraphics[width=2in]{final/Figure_time_datestop.pdf}
+    % \caption{Caption}
+    % \label{fig:my_label}
+\end{minipage}}
+\subfloat[By Hour]{\begin{minipage}{0.33\textwidth}
+    \centering
+    \includegraphics[width=2in]{final/Figure_time_timestop.pdf}
+    % \caption{Caption}
+    % \label{fig:my_label}
+\end{minipage}}
+\caption{Arrest Across Time}
+\label{fig:arstmade}
+\end{figure*}
+
+
+% \begin{figure}
+% \begin{minipage}{0.65\textwidth}
+%     \centering
+%     \includegraphics[width=4in]{midterm/Figure1time.pdf}
+%     \caption{Arrest Across Time}
+%     \label{fig:arstmade}
+% \end{minipage}
+% \begin{minipage}{0.35\textwidth}
+% \centering
+% \begin{tabular}{ccc}
+% \textbf{Gender} & \textbf{Arrest Rate} & \textbf{Total Stops} \\ \hline
+% Male            & 0.212                & 9940                 \\
+% Female          & 0.244                & 598           \\    \hline  
+% \end{tabular}    
+% \captionof{Table}{Arrest Across Gender}
+% \label{Table:gender}
+% \end{minipage}
+% \end{figure}
+
+Figure \ref{fig:location} shows the \textbf{geographical distribution} of these observations. Color turning purple to red means the higher frequency of stops, questions or frisks, while bigger red circles mean higher arrest-made rate. As we can see, arrest-made rate varies a lot in different precincts.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=3in]{midterm/map-2016-vis.png}
+    \caption{Arrest Across Location}
+    \label{fig:location}
+\end{figure}
+
+
+% location
+
+% different type of suspect
+We also investigated arrest-made rate across several \textbf{suspect features} which was visualized in Figure \ref{fig:susF}. The arrest-made rates of older suspects are illustrated to be higher, while arrest-made rates over different weights and heights did not show significant disparity because the number of suspects with extreme weights/heights is very small. The arrest-made rate of females was much higher than that of males, but there was far fewer women in our samples. In terms of race, the rates of P (Black Hispanic), Q (White Hispanic), and Z (other) were the highest. For the rest of features, there was no significant difference taking the small number of samples with certain features in consideration.
+%
+
+Figure \ref{fig:hm} shows the \textbf{correlation between dominant features} whose correlation coefficient with respect to the predicted variable were larger than 0.1. They were listed in Table \ref{tab:variable}. Here, we applied \href{https://en.wikipedia.org/wiki/Pearson_correlation_coefficient}{Pearson Correlation} for pair of continuous variables and \href{https://en.wikipedia.org/wiki/Cram\%C3\%A9r\%27s_V}{Cramer's V} for pair of categorical variables. Only 13 features were selected, which means that the majority of features could not linearly explain the variation. 
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=3.3in]{final/susF.pdf}
+    \caption{Arrest-made Rate over Suspect Features}
+    \footnotesize{sex: F:female, M:male\\
+    race: A:Asian, B:Black, I:American Indian, P:BlackHispanic, Q:White Hispanic, Z:Other\\
+    build: H: heavy, M:medium, T:thin, U:muscular\\
+    haircolor, eyecolor: BK:black,
+BL:blue,
+BR:brown,
+DF:two different,
+GR:grenn,
+GY:gray,
+HA:hazel,
+MA:maroon,
+PK:pink,
+VI:vilvet
+}
+    \label{fig:susF}
+\end{figure}
+
+% 表2 表3 图4 合并一张
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=3.2in]{final/Figure_hm_1416.pdf}
+    \caption{Dominant Features Correlation Heatmap}
+    \label{fig:hm}
+\end{figure}
+
+\begin{table}[htb]
+    \centering
+\begin{tabular}{clc} \hline
+\textbf{Feature} & \textbf{Description}                                                        & \textbf{Type} \\ \hline
+sb-other          & basis of search: other                                                             & boolean   \\
+searched          & was suspect searched                                                            & boolean   \\
+contranb             & \begin{tabular}[c]{@{}l@{}}was contraband found\\  on suspect\end{tabular}      & boolean   \\
+addrpct               &stop address precinct                                                        & Categorical   \\
+crimesusp              & crime suspected                                                              & Categorical   \\
+inout               & \begin{tabular}[c]{@{}l@{}}was stop inside or\\outside\end{tabular}                                                                 & boolean    \\
+knifcuti                & \begin{tabular}[c]{@{}l@{}}was a knife/cutting\\instrumts found\end{tabular}                                                             & bollean    \\
+rf-othsw            & \begin{tabular}[c]{@{}l@{}}reason for frisk:\\  other susp of weapons\end{tabular}                                                           & boolean    \\
+pistol          & was a pistol found                                                         & boolean   \\
+sb-admis         & \begin{tabular}[c]{@{}l@{}}basis of search:\\  admission by suspect\end{tabular}                                                         & boolean   \\
+otherweap            & was other weapons found                                                             & boolean   \\
+sb-outln           & outline of weapon & boolean   \\
+ cs-casng & \begin{tabular}[c]{@{}l@{}}reason for stop:\\  casing a victim or location\end{tabular} & boolean\\ \hline
+\end{tabular}
+    \caption{Dominant (High Correlation) Features}
+    \label{tab:variable}
+\end{table}
+
+% Figure \ref{fig:hm} shows the correlation between different variables. Here, we applied \href{https://en.wikipedia.org/wiki/Pearson_correlation_coefficient}{Pearson Correlation} for pair of continuous variables and \href{https://en.wikipedia.org/wiki/Cram\%C3\%A9r\%27s_V}{Cramer's V} for pair of categorical variables. We can see that the correlations between variables are rather small, which indicates the need of feature selection  and engineering.
+
+% \begin{figure}[htbp]
+% \begin{minipage}{0.7\textwidth}
+% % \begin{table}[]
+% % \begin{center}
+% \begin{tabular}{cccc}
+% \textbf{Label} & \textbf{Race}                  & \textbf{Arrest Rate} & \textbf{Total Stops} \\ \hline
+% I              & American Indian/Alaskan Native & 0.118                & 34                   \\
+% A              & Asian/Pacific Islander         & 0.153                & 639                  \\
+% B              & Black                          & 0.202                & 5558                 \\
+% W              & White                          & 0.203                & 1086                 \\
+% P              & Black-Hispanic                 & 0.235                & 756                  \\
+% Q              & White-Hispanic                 & 0.257                & 2393                 \\
+% U              & Unknown                         & 0.264                & 72                  \\ \hline
+% \end{tabular}    
+% % \end{center}
+% \captionof{Table}{Arrest Across Race}
+% \label{Table:race}
+% % \end{table}
+% \end{minipage}
+% \hspace{-0.2in}
+% \begin{minipage}{0.3\textwidth}
+% \centering
+% \includegraphics[width=2in]{midterm/Figure2race.pdf}
+% \caption{Arrested Suspects Across Race}
+% \label{fig:race}
+% \end{minipage}
+% \end{figure}
+
+\section{Problem Formulation}
+% \section{Modeling}
+
+Prediction of arrestment decision is to figure out what kind of stop, question, or frisk and what kind of suspect will have a higher probability/ability to be arrested. We attempted to train models to grasp these probabilities/abilities.
+
+
+\subsection{Feature Engineering}
+Before modeling, we performed feature engineering, which can substantially boost machine learning model performance by providing a well-structured form of data. 
+
+Specifically, we used (1) \textbf{binary encoding} for the Boolean features. (2) \textbf{One-hot encoding} was applied to the categorical features (crimsusp, addrpct, sex, race, hair color, eye color, build, etc.). Meanwhile, for the sake of further stratified split on data set, we (3) \textbf{merged some categories together} in features such as crimsusp, eyecolor, and haircoler. To grasp the non-linear relationships, we applied the technique of (4) \textbf{polynomial transformation} on timestop, CPI, and stock market index.
+
+Those continuous variables such as year, month, height, weight, and economic data were \textbf{standardized} before being used. This procedure was indispensable and imposed a significant influence on the final results.
+
+After feature engineering, there were 207 features in total. Based on such a large number of features, regularization seemed to be necessary to prevent over-fitting.
+
+\subsection{Validation Method}
+To validate our models, we applied \textbf{stratified cross validation} with 5 folds. Stratification here is to ensure that each fold has the same feature structure with the whole data set. For example, if there were about 18\% female samples in total, then in each fold, there were about 18\% female. 
+
+For each fold, we used the 80:20 principle to split the train-test data set. Again, it was a \textbf{stratified split} rather than a simple random split.
+
+\subsection{Model Performance \& Fairness Metrics}
+
+Following standard performance metrics are used for evaluating our classifier: \textbf{Accuracy (ACC), Precision (PPV), Recall (TPR) (from \href{https://en.wikipedia.org/wiki/Confusion_matrix}{Confusion Matrix}), \href{https://en.wikipedia.org/wiki/Receiver_operating_characteristic}{AUC}, and \href{https://en.wikipedia.org/wiki/F1_score}{$F_1$-score}.}
+
+\vspace{-15pt}
+\begin{align*}
+    ACC = \frac{TP+TN}{P+N}, ~~&~~ PPV = \frac{TP}{TP+FP} \\
+    TPR = \frac{TP}{p}, ~~&~~   F_1 = 2\frac{PPV\cdot TPR} {PPV+TPR} 
+\end{align*}
+
+
+
+Note that AUC and $F_1$-score are overall metrics for performance of the classification model. 
+
+In addition to performance metrics, fairness is also an important aspect to be explored. Donna Lieberman, Executive Director of the New York Civil Liberties Union, said: ``New York City is safer than ever, but we have made no meaningful progress in reducing the \textbf{racial disparities} in who is stopped by police on the street."\footnote{https://www.nyclu.org/en/press-releases/nyclu-releases-report-analyzing-nypd-stop-and-frisk-data}
+
+Though many definitions of fairness have been proposed in the literature (see \cite{gajane2017formalizing} for an overview), we used \textbf{demographic parity} and \textbf{equalized odds}, which capture the ``group fairness".
+
+The classifier satisfies demographic party if the prediction is independent of the protected attribute:
+
+\vspace{-15pt}
+\begin{equation*}
+    \mathbf{P}(\hat{y}|a=1) = \mathbf{P}(\hat{y}|a=0) = \mathbf{P}\hat{y}.
+\end{equation*}
+
+The classifier satisfies equalized odds if the prediction is independent of the protected attribute $a$ conditional on the outcome $y$:
+
+\vspace{-15pt}
+\begin{equation*}
+    \mathbf{P}(\hat{y}|y, a=1) = \mathbf{P}(\hat{y}|y, a=0) = \mathbf{P}\hat{y}|y.
+\end{equation*}
+
+Here, we used false positive rate to measure in what extent we harm the innocent suspects who should not be arrested. This report focused on fairness with respect to \textbf{sex and race}, which will be shown in the later part.
+
+
+\subsection{Implementation}
+
+Throughout the report, we implemented all models with Python and the Scikit-Learn \cite{scikit-learn}  library. \label{sec:problem}
+
+
+\section{Linear Modeling: Logistic Regression} \label{sec:linear}
+\subsection{Model Overview}
+As we said in the problem formulation part, the problem was to build models that can explain what kind of suspects or events feature leading to arrestment with higher possibilities. This aligns perfectly with the logistic regression, which naturally has a probability explanation. Logistic regression transforms the continuous value obtained from linear regression into a Bernoulli random variable, which is shown below.
+
+ \vspace{-15pt}
+\begin{align*}
+    &\mathbf{P}(y=1) = logistic(w^{T}x)\\
+    &\mathbf{P}(y=0) = logistic(-w^{T}x)\\
+    where,\\
+    &logistic(u) = \frac{exp(u)}{1+exp(u)}
+\end{align*}
+
+\subsection{Train with Raw Data}
+First of all, we trained a logistic regression classifier on all cleaned data (75343x207). The result from cross validation was displayed in Table \ref{Table:metric-raw}. The fairness performance of this model was shown in Table \ref{Table:Fairness metric-raw}.
+
+
+\begin{table}[htb]
+\centering
+\begin{tabular}{@{}ccllllll@{}}
+\toprule
+\multicolumn{1}{}{\textbf{}}     & \multicolumn{1}{}{\textbf{}} & \multicolumn{1}{c}{\textbf{1}} & \multicolumn{1}{c}{\textbf{2}} & \multicolumn{1}{c}{\textbf{3}} & \multicolumn{1}{c}{\textbf{4}} & \multicolumn{1}{c}{\textbf{5}} & \multicolumn{1}{c}{\textbf{avg}} \\ \midrule
+\multirow{}{}{\textbf{TPR}}    & \textbf{trn$^*$}                 & .630                            & .629                            & .628                            & .630                            & .630                            & .629                              \\ \cmidrule(lr){2-2}
+                                    & \textbf{tst$^*$}                  & .626                            & .623                            & .619                            & .627                            & .627                            & .624
+                                     \\
+                                    \hline
+\multirow{}{}{\textbf{PPV}} & \textbf{trn}                 & .820                            & .823                            & .823                            & .819                            & .820                            & .821                              \\ \cmidrule(lr){2-2}
+                                    & \textbf{tst}                  & .817                            & .818                            & .822                            & .814                            & .814                            & .817                              \\ \hline
+\multirow{}{}{\textbf{ACC}}  & \textbf{trn}                 & .914                            & .914                            & .914                            & .913                            & .913                            & .913                              \\ \cmidrule(lr){2-2}
+                                    & \textbf{tst}                  & .913                            & .912                            & .012                            & .912                            & .912                            & .912                              \\ \hline
+\multirow{}{}{\textbf{$F_1$}}        & \textbf{trn}                 & .713                            & .713                            & .712                            & .712                            & .712                            & .712                              \\ \cmidrule(lr){2-2}
+                                    & \textbf{tst}                  & .709                            & .707                            & .706                            & .708                            & .708                            & ,708                              \\ \hline
+\multirow{}{}{\textbf{AUC}}       & \textbf{trn}                 & .915                            & .915                            & .916                            & .917                            & .915                            & ,916                              \\ \cmidrule(lr){2-2}
+                                    & \textbf{tst}                  & .913                            & .915                            & .912                            & .905                            & .915                            & .912                              \\ \hline
+\end{tabular}
+
+    \caption{Performance of Model on Complete Data set}
+    \footnotesize{$^*$ trn is short for train, tst short for test}\\
+    \label{Table:metric-raw}
+\end{table}
+
+\begin{table}[htb]
+\centering
+\begin{tabular}{cccccccc}
+\hline
+\textbf{Sex$^*$} & \textbf{F} & \textbf{M} &            &            &            &            &            \\ \hline
+\textbf{coef}   & -.14        & -.48        &            &            &            &            &            \\
+\textbf{FPR}    & .035        & .027        &            &            &            &            &            \\ \hline
+\textbf{Race$^*$}       & \textbf{A} & \textbf{B} & \textbf{I} & \textbf{P} & \textbf{Q} & \textbf{W} & \textbf{Z} \\ \hline
+\textbf{coef}   & -.14         & -.04        & -0.44       & .11        & .06         & -.27         & 0.08       \\
+\textbf{FPR}    & .01        & .03        & .01        & .03        & .03        & .03        & .01   \\  \hline  
+\end{tabular}
+\caption{Fairness of Model on Complete Data set}
+    \footnotesize{$^*$ F:female, M:male, A:Asian, B:Black, I:American Indian, P:Black Hispanic, Q:White Hispanic, Z:Other}
+    \label{Table:Fairness metric-raw}
+\end{table}
+
+From Table \ref{Table:metric-raw}, the TPR and $F_1$ are pretty low compared to other metrics, which means that this model performed poorly on finding positive samples out of which should be positive. However, such poor performance was mostly caused by the fact that the data set was unbalanced: only 16\% of samples were positive! 
+
+As for how fair was this model, Table \ref{Table:Fairness metric-raw} told us that the model pushed female, Hispanic (P, Q) to be arrested much more than male and other races. When checking FPR over different sexes and races, we can find that this model was surprisingly fair, there did not exist significant differences across sexes and races.
+
+\subsection{Train with Balanced Data}
+Given that the raw data set was unbalanced, the number of arrested was far less than the unarrested, it is reasonable to train a new model based on a balanced data set. We used \textbf{under-sampling} to balance the data. Specifically, we kept all the samples labeled as 1 and part of the samples labeled as 0 (unarrested) to ensure that the number of positive samples equals that of the negative one. We also used stratified splitting to maintain the feature structure. After balancing the data set, we got 24670 samples.
+
+Table \ref{Table:metric metric-bal} displayed the average of results from 5-fold cross validation. The overall performance increased considerably and reasonably after the data set was balanced!
+
+
+\begin{table}[htb]
+    \centering
+\begin{tabular}{@{}cccccc@{}}
+\hline
+             & \textbf{TPR} & \textbf{PPV} & \textbf{ACC} & \textbf{$F_1$} & \textbf{AUC} \\
+\hline
+\textbf{trn} & .787         & .877         & .855         & .830        & .920         \\
+\textbf{tst} & .782         & .872         & .850         & .825        & .915\\ \hline
+\end{tabular}
+\caption{Performance of Model on Balanced Data set}
+    \label{Table:metric metric-bal}
+\end{table}
+
+According to coefficients of demographic features in Table \ref{Table:Fairness metric-bal}, suspects with different sex or race had a disparate probability of being arrested. Such demographic disparity was inevitable if we desired a better classification performance. Meanwhile, the FPR varied greatly from female to male and across the races. Such phenomena could be explained by the disparity which was a fact supported by our data analysis before and what was said by the executive director, Donna Lieberman. Balanced data helped the model learn such disparity so that the performance of the model boosted while the fairness of the model declined.
+
+\begin{table}[htb]
+\centering
+\begin{tabular}{cccccccc}
+\hline
+\textbf{Sex} & \textbf{F} & \textbf{M} &            &            &            &            &            \\ \hline
+\textbf{coef}   & .14        & -.09        &            &            &            &            &            \\
+\textbf{FPR}    & .12        & .09        &            &            &            &            &            \\ \hline
+\textbf{Race}       & \textbf{A} & \textbf{B} & \textbf{I} & \textbf{P} & \textbf{Q} & \textbf{W} & \textbf{Z} \\ \hline
+\textbf{coef}   & -.08         & -.01        & -.01       & .19        & .10         & -.21         & 0.05       \\
+\textbf{FPR}    & .03        & .10       & .20        & .12        & .11        & .09        & .16   \\  \hline  
+\end{tabular}
+\caption{Fairness of Model on Balanced Data set}
+    \label{Table:Fairness metric-bal}
+\end{table}
+
+
+\subsection{Fitting Analysis}
+Based on the results shown above, there was little evidence supporting that the model was over-fitted or under-fitted so that we claimed the model was properly fitted. Specifically, the performance metrics on both train and test sets were relatively high. However, here, we would like to add an $l_1$ penalty to the loss function in order to firstly test our claim on the good fit and secondly encourage sparsity and therefore interpretability. We still trained the model on the balanced data set.
+
+From Table \ref{Table:metric metric-bal-l1}, the performance was not improved essentially by using a regularization. This could be a sign that our model was not over-fitted at all despite a large number of features used.
+
+\begin{table}[htb]
+    \centering
+\begin{tabular}{@{}cccccc@{}}
+\hline
+             & \textbf{TPR} & \textbf{PVV} & \textbf{ACC} & \textbf{$F_1$} & \textbf{AUC} \\
+\hline
+\textbf{trn} & .783         & .878         & .853         & .828        & .920         \\
+\textbf{tst} & .780         & .874         & .850         & .824        & .915\\ \hline
+\end{tabular}
+\caption{Performance of $l_1$ Penalized Model}
+    \label{Table:metric metric-bal-l1}
+\end{table}
+
+Changes in terms of fairness in Table \ref{Table:Fairness metric-bal-l1} shows that adding $l_1$ regularization increased unfairness across races and sexes.
+
+\begin{table}[htb]
+\centering
+\begin{tabular}{cccccccc}
+\hline
+\textbf{Sex} & \textbf{F} & \textbf{M} &            &            &            &            &            \\ \hline
+\textbf{coef}   & 0.01        & -0.23        &            &            &            &            &            \\
+\textbf{FPR}    & .13        & .09        &            &            &            &            &            \\ \hline
+\textbf{Race }       & \textbf{A} & \textbf{B} & \textbf{I} & \textbf{P} & \textbf{Q} & \textbf{W} & \textbf{Z} \\ \hline
+\textbf{coef}   & -.10         & -.02        & -.00       & .14        & .06         & -.21         & .00       \\
+\textbf{FPR}    & .02        & .09       & .20        & .12        & .11        & .08        & .16   \\  \hline  
+\end{tabular}
+\caption{Fairness of $l_1$ Penalized Model}
+    \label{Table:Fairness metric-bal-l1}
+\end{table}
+
+% \newpage
+\section{Non-linear Modeling: Kernel SVM} \label{sec:non-linear}
+
+\subsection{Model Overview}
+In this section, we tried to use non-linear models to extract more information from the data set and thus improve performance. We used Kernel SVM models. 
+As a warm-up, let us briefly review Kernel SVM models. The goal of SVM is to find a hyperplane with the largest distance to the closest training examples. The optimization problem of soft-margin SVM is formulated as follows:
+
+\vspace{-15pt}
+\begin{align*}
+\min_{\mathbf{w},b,\mathbf{\xi}} & \frac{1}{2} \mathbf{w}^T \mathbf{w} + C \sum_{i=1}^n \xi_i \\
+s.t.~~&  y_i(\mathbf{w}^T \mathbf{x}_i + b) \ge 1 - \xi_i ~~~\forall i \in [n] \\
+& \xi_i \ge 0 ~~~ \forall i \in [n],
+\end{align*}
+where $C$ is a parameter that controls trade-off between margin and training error. 
+If data is not linearly separable, we can incorporate kernel methods to construct a non-linear boundary. Using kernels, we map the input space into the feature space, which usually has a higher dimensionality. Four types of kernels are often used:
+\begin{itemize}
+\item Linear: $k(\vec{a},\vec{b}) = \vec{a} \cdot \vec{b}$
+\item Polynomial: $k(\vec{a},\vec{b}) = [ \vec{a} \cdot \vec{b} + 1]^d $
+\item Radial Basis Function (RBF): $k(\vec{a},\vec{b}) = e^{-\gamma [\vec{a}-\vec{b}]^2}$
+\item Sigmoid: $k(\vec{a},\vec{b}) = \tanh(\gamma [\vec{a} \cdot \vec{b}]+c)$
+\end{itemize}
+
+% We also tried non-linear models as well as regularization to improve performance. Specifically, Kernel SVM was used. Four types of kernel are available, which were ‘linear’, ‘poly’, ‘rbf’, and ‘sigmoid’. 
+Note that when we fitted the logistic classification models, we manually calculated the quadratic and cubic terms of some features to incorporate non-linearity. We removed such features in this section.
+
+\subsection{Model Performance}
+
+We implemented SVM with 4 different kernels and set $C$ as 1. The results were reported in Table \ref{Table:metric-SVM}. Though Poly SVM outperformed others on the training set, its performance on the test set showed a sign of over-fitting. Based on the results, we chose the RBF kernel. Compared with the best logistic model (on balanced data without regularization) we trained before, the $F_1$ and TPR increased while AUC decreased.
+
+We also reported fairness of the RBF kernel model in terms of FPR in Table \ref{table:fair-SVM}. Though FPR is low among difference sexes or races, the differences still show the unfairness. We do not report coefficients of these features because the classification boundary is defined in a higher dimensionality. Lack of interpretability is a drawback of non-linear models.
+
+\begin{table}[htb]
+\centering
+\begin{tabular}{@{}ccllll@{}}
+\toprule
+\multicolumn{1}{}{\textbf{}}     & \multicolumn{1}{}{\textbf{}} & \multicolumn{1}{c}{\textbf{Linear}} & \multicolumn{1}{c}{\textbf{Poly}} & \multicolumn{1}{c}{\textbf{RBF}} & \multicolumn{1}{c}{\textbf{Sigmoid}} \\ \midrule
+\multirow{}{}{\textbf{TPR}}    & \textbf{trn}                 & .842                            & .921                            & .910                            & .819            \\ \cmidrule(lr){2-2}
+                                    & \textbf{tst}                  & .833                            & .830                            & .864                            & .831                                 \\                        \hline
+\multirow{}{}{\textbf{PPV}} & \textbf{trn}                 & .840                            & .843                            & .893                            & .829     \\ \cmidrule(lr){2-2}
+                                    & \textbf{tst}                  & .839                           & .840                            & .862                            & .834                              \\ \hline
+\multirow{}{}{\textbf{ACC}}  & \textbf{trn}                 & .839                            & .918                            & .907                            & .816                             \\ \cmidrule(lr){2-2}
+                                    & \textbf{tst}                  & .831                            & .833                            & .858                            & .830          \\ \hline
+\multirow{}{}{\textbf{$F_1$}}        & \textbf{trn}                 & .840                            & .923                            & .912                            & .812                           \\ \cmidrule(lr){2-2}
+                                    & \textbf{tst}                  & .830                            & .827                            & .861                            & .828                                      \\ \hline
+\multirow{}{}{\textbf{AUC}}       & \textbf{trn}                 & .830                            & .911                            & .901                           & .808                                         \\ \cmidrule(lr){2-2}
+                                    & \textbf{tst}                  & .823                            & .826                            & .852                          & .824                                \\ \hline
+\end{tabular}
+
+    \caption{Performance of Kernel SVMs}
+    \label{Table:metric-SVM}
+    \end{table}
+
+
+\begin{table}[htb]
+\centering
+\begin{tabular}{cccccccc}
+\hline
+\textbf{Sex} & \textbf{F} & \textbf{M} &            &            &            &            &            \\ \hline
+\textbf{FPR}    & .15        & .08        &            &            &            &            &            \\ \hline
+\textbf{Race }       & \textbf{A} & \textbf{B} & \textbf{I} & \textbf{P} & \textbf{Q} & \textbf{W} & \textbf{Z} \\ \hline
+\textbf{FPR}    & .04       & .08       & .01        & .07        & .10        & .09        & .01   \\  \hline  
+\end{tabular}
+\caption{Fairness of RBF-SVM Model}
+\label{table:fair-SVM}
+\end{table}
+
+\section{Result Interpretation} \label{sec:interpret}
+% 没有去掉平方项
+Finally, in this section, we interpret the results of our models. We start with the results of the logistic regression with $l_1$ penalty. There were 36 features whose coefficient was 0 such as crimsusp\_9 (Criminal Possession of a Forged Instrument), 15 (Driving while Intoxicated), 24 (Homicide), and CPI. Table \ref{Table:lrtf} displayed the features with relatively large coefficients. No detailed explanation was reported since we applied a more advanced model, Random Forest, to do this work.
+
+\begin{table}[htbp]
+    \centering
+    \begin{tabular}{cccc} \hline
+    \textbf{Feature} & \textbf{Coef} & \textbf{Feature} & \textbf{Coef}\\ \hline
+    contrabn         & 3.107    &        
+    pistol        & 2.986\\            
+    knifcuti            & 2.233   &         
+    otherweap         & 2.049\\            
+    sb\_other     & 1.880     &  
+    addrpct\_42         & 1.732 \\         
+    addrpct\_40          & 1.541 &
+    searched           &1.440\\ 
+    crimsusp\_50     &1.373&
+    addrpct\_19     &1.294\\
+    sumissue     & -3.145&
+    addrpct\_121 & -1.423\\
+    \hline
+    \end{tabular}
+    \caption{The Top Important Features from $l_1$ logistic regression}
+    \label{Table:lrtf}
+\end{table}
+
+We utilized the scikit-learn Random Forest Library, which implements the \textbf{Gini Importance}. Gini Importance (also known as Mean Decrease in Impurity (MDI)) calculates each feature importance as the sum over the number of splits (across all tress) that include the feature, proportionally to the number of samples it splits \footnote{https://alexisperrier.com/datascience/2015/08/27/feature-importance-random-forests-gini-accuracy.html}.
+
+Table \ref{tab:ip5} shows the top 5 important features, which are whether the suspect was searched, whether the suspect was searched based on other reasons, whether contraband was found on suspects, was the stop inside or outside and what time did the event happen.
+Among all the suspected crime types, Misdemeanor (32), Criminal Trespass (50), Felony (16), Criminal Possession of a Weapon (12) and Other (34) are the most relevant as shown in Table \ref{tab:crim}.
+
+\begin{table}[htbp]
+    \centering
+    \begin{tabular}{cc} \hline
+    \textbf{Feature} & \textbf{Importance} \\ \hline
+    searched         & 0.123727            \\
+    sb\_other        & 0.093401            \\
+    contrabn         & 0.05665             \\
+    inout            & 0.038324            \\
+    timestop         & 0.023485           \\ \hline
+    \end{tabular}
+    \caption{The Top 5 Important Features}
+    \label{tab:ip5}
+\end{table}
+
+\begin{table}[htbp]
+    \centering
+    \begin{tabular}{cc} \hline
+    \textbf{Feature} & \textbf{Importance} \\ \hline
+    crimsusp\_32     & 0.012939            \\
+    crimsusp\_50     & 0.010781            \\
+    crimsusp\_16     & 0.009015            \\
+    crimsusp\_12     & 0.004794            \\
+    crimsusp\_34     & 0.002275           \\ \hline
+    \end{tabular}
+    \caption{The Top 5 Important Crime Types}
+    \label{tab:crim}
+\end{table}
+
+The results from $l_1$-logistic regression and random forest agreed with each other. We could conclude that among being stopped, searched and frisked, suspects being searched were most likely to be arrested, then was being frisked. Besides, suspects with weapons or contrabands were very likely to be arrested. At what time and in which place also mattered a lot. Stops inside would lead to arrestment with a higher probability. Among features of the economic situation, CPI\_M, CPI on medical care, had a positive coefficient of 0.18, while S\&P 500 had a coefficient of -0.04 and its square's coefficient was -0.07. This implies that suspects tended to be arrested in times of inflation, especially when people had to spend more on medical care while suspects would be less likely to be arrested in times of bullish market when people earned money from the stock market. 
+
+Suspects' race and sex were not determinant features, but we also found disparate treatment over sexes and races, which was discussed before.
+
+
+\section{Conclusion} \label{sec:conclude}
+
+In this report, we merged data from two sources, NYPD website and Wind Financial Terminal, to build classification models to predict police officers' arrestment decisions. We found that the logistic regression model trained on the balanced data set performed well in terms of $F_1$ (0.825) and AUC (0.915), but this model was unfair across sex and race. 
+
+We also tried Kernel SVM models, among which RBF was the best kernel with $F_1$ (0.861) and AUC (0.852). The non-linear model featured some advantages such as a higher $F_1$, but we cannot claim it was better because its AUC decreased sharply. In terms of fairness, it was unfair in the same way.
+
+In the end, we interpreted our models combined with results of random forest. We found that suspects being searched were very likely to be arrested. %, causes leading to be searched should be carrying contrabands or weapons. 
+Time and location also mattered greatly. %, some precinct and some time slot meant high probability of arrestment.
+
+7 techniques were applied in this project: (1) outlier treatment, (2) feature engineering, (3) stratified sampling, (4) logistic regression, (5) support vector machine (SVM), (6) random forest, and (7) regularization.
+
+The highlights of our work are (1) through improving our model, we obtain models with good performance in terms of metrics like $F_1$ and AUC, (2) we evaluated our models in terms of group fairness. Through modeling, we do observe the trade-off between accuracy and fairness. The unfair treatment among difference sexes and races, measured in terms of FPR, is the reason that we should be cautious to use the models to make decisions. The unfairness of our models may come from human bias existing in the training dataset due to historical reasons. When we ``blindly" pursue accuracy, we also learn the bias embedded in the data set, and the model we build will reinforce such discrimination in one way or another. In the future, a fairer model can be expected via pre-processing, optimization at training time, and post-processing. \footnote{Section 5 of \href{https://towardsdatascience.com/a-tutorial-on-fairness-in-machine-learning-3ff8ba1040cb}{\textit{A Tutorial on Fairness in Machine Learning}} introduces these methods in detail.}
+
+
+
+% \bibliographystyle{IEEEtran}%{plian}
+% % \bibliographystyle{alphadin}
+% \bibliography{ref_final}{}
+

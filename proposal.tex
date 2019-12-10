@@ -1,0 +1,43 @@
+% \documentclass[12pt]{extarticle}
+\documentclass[letterpaper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{cite}
+\usepackage{url}
+\usepackage{appendix}
+
+\title{Examining the NYPD Arrests Dataset}
+\author{Binxin Liu (bl642)~~~~Mengjia Xia (mx233)\footnote{We thank Varun Somani (vs472) for discussing the initial proposal.}}
+\date{ORIE 4741 Learning with Big Messy Data\\ Fall 2019}
+
+\begin{document}
+
+\maketitle
+
+The dataset we will be using is the NYPD Arrests Data \cite{NYPD} owned by NYC OpenData. The data is manually extracted every quarter by Police Department (NYPD). Each record represents an arrest effected in NYC by the NYPD and includes information about the type of crime, the location and time of enforcement. The dataset covers the period 2006 - 2018, and has 4.8M records in total.
+
+%ranges from 2006 to 2018. It is a line-by-line record of each arrest the NYPD conducted during those years.  
+We will use the dataset to try to answer the following question:
+\begin{itemize}
+    \item  How has the crime type changed in a certain region over the 12 years the dataset presents?
+\end{itemize}
+
+This question is important because the dataset ranges from time the world was reeling from the massive financial collapse which was centered in NYC. We can examine how an increase in prosperity from that time to now has affected the type of crime committed. 
+
+% The dataset has exact dates for the crime, and 
+In addition, information related to suspect demographics is also included in this dataset. We can also examine the race and gender. Thus, it will allow us a broad view of how crime has changed in the various regions, and whether certain racial or gender groups have fared better over the time than others. 
+
+
+
+% {\large
+% References}
+% \begin{enumerate}
+%     \item OpenData, NYC. “NYPD Arrests Data (Historic).” Data.gov,\\ Data.cityofnewyork.us, 21 May 2019, catalog.data.gov/dataset/nypd-arrests-data-historic.
+% \end{enumerate}
+
+% (NYPD), Police Department. “NYPD Arrests Data (Historic): NYC Open Data.” NYPD Arrests Data (Historic) | NYC Open Data, 16 May 2019, data.cityofnewyork.us/Public-Safety/NYPD-Arrests-Data-Historic-/8h9b-rp9u.
+
+\bibliographystyle{IEEEtran}%{plian}
+% \bibliographystyle{alphadin}
+\bibliography{ref_proposal}{}
+
+\end{document}
